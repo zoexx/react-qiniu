@@ -38,6 +38,8 @@ var ReactQiniu = React.createClass({
         prefix: React.PropTypes.string,
         //props to check File Size before upload.example:'2Mb','30k'...
         maxSize:React.PropTypes.string,
+        // props to controll upload progress , default is true
+        autoUpload: React.PropTypes.bool
     },
 
     getDefaultProps: function() {
@@ -49,13 +51,15 @@ var ReactQiniu = React.createClass({
         return {
             supportClick: true,
             multiple: true,
-            uploadUrl: uploadUrl
+            uploadUrl: uploadUrl ,
+            autoUpload: true
         };
     },
 
     getInitialState: function() {
         return {
-            isDragActive: false
+            isDragActive: false ,
+            fileQueue : []
         };
     },
 
@@ -94,6 +98,38 @@ var ReactQiniu = React.createClass({
             files = Array.prototype.slice.call(files, 0, maxFiles);
             this.props.onUpload(files, e);
         }
+        if ( !this.props.autoUpload ){
+            // add files into queue
+            var fileQueue = this.state.fileQueue ;
+                fileQueue = fileQueue.concat( files );
+            this.setState({ fileQueue : fileQueue });
+            console.log('there are '+ fileQueue.length +' files in queue');
+        }else{
+            this.startUpload( files );
+        }
+
+    },
+
+    onClick: function () {
+        if (this.props.supportClick) {
+            this.open();
+        }
+    },
+
+    open: function() {
+        var fileInput = ReactDOM.findDOMNode(this.refs.fileInput);
+        fileInput.value = null;
+        fileInput.click();
+    },
+
+    uploadQueue:function(){
+        var files = this.state.fileQueue ;
+        this.startUpload( files );
+        // 上传失败后应该重新加入队列
+        this.setState({ fileQueue : [] });
+    },
+
+    startUpload: function( files ){
         var maxSizeLimit=formatMaxSize(this.props.maxSize)
         for (var i = 0; i < maxFiles; i++) {
             if( maxSizeLimit && files[i].size > maxSizeLimit){
@@ -113,18 +149,6 @@ var ReactQiniu = React.createClass({
             files = Array.prototype.slice.call(files, 0, maxFiles);
             this.props.onDrop(files, e);
         }
-    },
-
-    onClick: function () {
-        if (this.props.supportClick) {
-            this.open();
-        }
-    },
-
-    open: function() {
-        var fileInput = ReactDOM.findDOMNode(this.refs.fileInput);
-        fileInput.value = null;
-        fileInput.click();
     },
 
     upload: function(file) {
